@@ -62,8 +62,9 @@ jobs:
 
     - name: Create Dummy CUPS Headers for iOS Cross-Compile
       run: |
-        mkdir -p ./fake_cups/cups
-        touch ./fake_cups/cups/cups.h
+        # Add the 'include' directory to match what the OpenJDK script expects
+        mkdir -p ./fake_cups/include/cups
+        touch ./fake_cups/include/cups/cups.h
 
     - name: Configure OpenJDK 25 Cross-Compilation
       run: |
@@ -85,7 +86,7 @@ jobs:
           --with-version-feature=25 \
           --with-version-string=25-internal \
           --with-cups=$FAKE_CUPS_DIR \
-          --with-cups-include=$FAKE_CUPS_DIR
+          --with-cups-include=$FAKE_CUPS_DIR/include
 
     - name: Compile OpenJDK 25 Images
       run: |
