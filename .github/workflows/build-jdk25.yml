@@ -46,6 +46,12 @@ jobs:
         echo "/opt/homebrew/opt/texinfo/bin" >> $GITHUB_PATH
         sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
+    - name: Set up Java 26 (Boot JDK)
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '26'
+
     - name: Build LibFFI for iOS ARM64
       run: |
         git clone https://github.com/libffi/libffi.git
