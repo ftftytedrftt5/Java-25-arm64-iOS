@@ -71,10 +71,15 @@ jobs:
         # 1. Enter the source directory
         cd openjdk-25
         
-        # 2. Setup paths
+        # 2. Create a mock CUPS directory layout
+        mkdir -p mock-cups/cups
+        touch mock-cups/cups/cups.h
+        touch mock-cups/cups/ppd.h
+        
+        # 3. Setup paths
         IOS_PLATFORM_SDK="/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk"
         
-        # 3. Run configure with headless and explicit CUPS suppression
+        # 4. Run configure pointing to the fake CUPS headers
         bash configure \
           --with-boot-jdk=$JAVA_HOME \
           --openjdk-target=aarch64-macos-ios \
@@ -88,8 +93,8 @@ jobs:
           --with-version-feature=25 \
           --with-version-string=25-internal \
           --enable-headless-only=yes \
-          --with-cups-include=no
-
+          --with-cups-include=$(pwd)/mock-cups
+          
     - name: Compile OpenJDK 25 Images
       run: |
         cd openjdk-25
