@@ -74,7 +74,7 @@ jobs:
         # 2. Setup paths
         IOS_PLATFORM_SDK="/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk"
         
-        # 3. Run configure with headless mode enabled to bypass CUPS dependencies entirely
+        # 3. Run configure with headless and explicit CUPS suppression
         bash configure \
           --with-boot-jdk=$JAVA_HOME \
           --openjdk-target=aarch64-macos-ios \
@@ -87,7 +87,8 @@ jobs:
           --disable-warnings-as-errors \
           --with-version-feature=25 \
           --with-version-string=25-internal \
-          --enable-headless-only=yes
+          --enable-headless-only=yes \
+          --with-cups-include=no
 
     - name: Compile OpenJDK 25 Images
       run: |
