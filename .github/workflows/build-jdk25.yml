@@ -68,18 +68,13 @@ jobs:
 
     - name: Configure OpenJDK 25 Cross-Compilation
       run: |
-        # 1. Force create the dummy CUPS layout inside the active workspace
-        mkdir -p "$GITHUB_WORKSPACE/fake_cups/include/cups"
-        touch "$GITHUB_WORKSPACE/fake_cups/include/cups/cups.h"
-        
-        # 2. Enter the source directory
+        # 1. Enter the source directory
         cd openjdk-25
         
-        # 3. Setup paths
+        # 2. Setup paths
         IOS_PLATFORM_SDK="/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk"
-        FAKE_CUPS_DIR="$GITHUB_WORKSPACE/fake_cups"
         
-        # 4. Run configure
+        # 3. Run configure with headless mode enabled to bypass CUPS dependencies entirely
         bash configure \
           --with-boot-jdk=$JAVA_HOME \
           --openjdk-target=aarch64-macos-ios \
@@ -92,8 +87,7 @@ jobs:
           --disable-warnings-as-errors \
           --with-version-feature=25 \
           --with-version-string=25-internal \
-          --with-cups=$FAKE_CUPS_DIR \
-          --with-cups-include=$FAKE_CUPS_DIR/include
+          --enable-headless-only=yes
 
     - name: Compile OpenJDK 25 Images
       run: |
