@@ -68,13 +68,18 @@ jobs:
 
     - name: Configure OpenJDK 25 Cross-Compilation
       run: |
+        # 1. Force create the dummy CUPS layout inside the active workspace
+        mkdir -p "$GITHUB_WORKSPACE/fake_cups/include/cups"
+        touch "$GITHUB_WORKSPACE/fake_cups/include/cups/cups.h"
+        
+        # 2. Enter the source directory
         cd openjdk-25
         
+        # 3. Setup paths
         IOS_PLATFORM_SDK="/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk"
-        
-        # Define base directory explicitly using the runner's root environment
         FAKE_CUPS_DIR="$GITHUB_WORKSPACE/fake_cups"
         
+        # 4. Run configure
         bash configure \
           --with-boot-jdk=$JAVA_HOME \
           --openjdk-target=aarch64-macos-ios \
