@@ -15,31 +15,6 @@ jobs:
 
     - name: Set up Autoconf & Build Dependencies
       run: |
-        brew install autoconf automake libtool
-        # Ensure Xcode command line tools are explicitly selected
-        sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-
-    - name: Set up Java 24 (Boot JDK)
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '24'
-
-    - name: Clone OpenJDK 25 Source
-      run: |
-        git clone --depth 1 https://github.com/openjdk/jdk25u-dev.git openjdk-25
-        cd openjdk-25
-
-    - name: Apply Pojav/Amethyst Memory Patches
-      run: |
-        cd openjdk-25
-        # NOTE: This is where you apply the custom W^X memory patches.
-        # For demonstration, we simulate applying a patch file:
-        # git apply ../patches/ios_jit_memory_swaps.patch
-        echo "Applying custom iOS JIT patches to HotSpot code..."
-
-    - name: Set up Autoconf & Build Dependencies
-      run: |
         # Added texinfo to provide 'makeinfo'
         brew install autoconf automake libtool texinfo
         # Force the system to see the newly installed texinfo binaries
@@ -72,19 +47,30 @@ jobs:
         make -j$(sysctl -n hw.ncpu)
         echo "LIBFFI_PATH=$(pwd)" >> $GITHUB_ENV
 
-
     - name: Clone OpenJDK Mobile Source
       run: |
-        rm -rf openjdk-25
         # Clone the main master branch which handles all versions
         git clone --depth 1 https://github.com/openjdk/mobile.git openjdk-25
+
+    - name: Apply Pojav/Amethyst Memory Patches
+      run: |
         cd openjdk-25
+        # NOTE: This is where you apply the custom W^X memory patches.
+        # For demonstration, we simulate applying a patch file:
+        # git apply ../patches/ios_jit_memory_swaps.patch
+        echo "Applying custom iOS JIT patches to HotSpot code..."
+
+    - name: Create Dummy CUPS Headers for iOS Cross-Compile
+      run: |
+        mkdir -p ./fake_cups/cups
+        touch ./fake_cups/cups/cups.h
 
     - name: Configure OpenJDK 25 Cross-Compilation
       run: |
         cd openjdk-25
         
         IOS_PLATFORM_SDK="/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk"
+        FAKE_CUPS_DIR="$(pwd)/../fake_cups"
         
         bash configure \
           --with-boot-jdk=$JAVA_HOME \
@@ -98,8 +84,8 @@ jobs:
           --disable-warnings-as-errors \
           --with-version-feature=25 \
           --with-version-string=25-internal \
-          --with-cups=$IOS_PLATFORM_SDK/usr \
-          --with-cups-include=$IOS_PLATFORM_SDK/usr/include
+          --with-cups=$FAKE_CUPS_DIR \
+          --with-cups-include=$FAKE_CUPS_DIR
 
     - name: Compile OpenJDK 25 Images
       run: |
