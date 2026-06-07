@@ -109,11 +109,20 @@ jobs:
         # 3. Stub out any calls inside os_bsd.cpp that rely on libproc if we are on iOS
         sed -i '' 's/proc_pidinfo/#if TARGET_OS_IPHONE\n-1\n#else\nproc_pidinfo\n#endif/g' src/hotspot/os/bsd/os_bsd.cpp || true
 
-    - name: Package Runtime Tarball
+    - name: Adjust packaging directory
       run: |
-        # Adjust packaging directory targeting the compiled static libs location
-        cd openjdk-25/build/*/images/static-libs
-        tar -czf ../../../../ios-arm64-jdk25.tar.gz .
+        cd openjdk-25
+        # Dynamically locate the static-libs path
+        STATIC_LIBS_PATH=$(find build -type d -name "static-libs" | head -n 1)
+        
+        if [ -z "$STATIC_LIBS_PATH" ]; then
+          echo "Error: static-libs directory not found!"
+          exit 1
+        fi
+        
+        cd "$STATIC_LIBS_PATH"
+        pwd
+        # Continue with your packaging steps here...
         
     - name: Upload Build Artifact
       uses: actions/upload-artifact@v4
