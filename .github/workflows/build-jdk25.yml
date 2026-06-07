@@ -67,11 +67,19 @@ jobs:
         echo "LIBFFI_PATH=$(pwd)" >> $GITHUB_ENV
 
 
+    - name: Clone OpenJDK Mobile Source
+      run: |
+        # Pull from the mobile-specific openjdk repo which contains the iOS port configs
+        git clone --depth 1 https://github.com/openjdk/mobile.git openjdk-25
+        cd openjdk-25
+
     - name: Configure OpenJDK 25 Cross-Compilation
       run: |
         cd openjdk-25
         
-        # Explicitly pinpoint the separate headers and library output folders for LibFFI
+        # Point directly to the location of the Xcode iOS platform SDK
+        IOS_PLATFORM_SDK="/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk"
+        
         bash configure \
           --with-boot-jdk=$JAVA_HOME \
           --with-target-bits=64 \
@@ -79,7 +87,7 @@ jobs:
           --with-jvm-variants=server \
           --with-libffi-include=$LIBFFI_PATH/include \
           --with-libffi-lib=$LIBFFI_PATH/.libs \
-          --with-sysroot=$(xcrun --sdk iphoneos --show-sdk-path) \
+          --with-sysroot=$IOS_PLATFORM_SDK \
           --with-extra-cflags="-arch arm64 -miphoneos-version-min=14.0" \
           --with-extra-ldflags="-arch arm64" \
           --disable-warnings-as-errors
