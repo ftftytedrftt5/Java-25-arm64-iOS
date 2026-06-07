@@ -98,8 +98,8 @@ jobs:
           --disable-warnings-as-errors \
           --with-version-feature=25 \
           --with-version-string=25-internal \
-          --with-cups=/usr \
-          --with-cups-include=/usr/include
+          --with-cups=$IOS_PLATFORM_SDK/usr \
+          --with-cups-include=$IOS_PLATFORM_SDK/usr/include
 
     - name: Compile OpenJDK 25 Images
       run: |
