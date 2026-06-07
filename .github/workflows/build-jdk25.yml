@@ -69,8 +69,11 @@ jobs:
 
     - name: Clone OpenJDK Mobile Source
       run: |
-        # Force remove the directory if it exists from a previous step or run
         rm -rf openjdk-25
+        
+        # Explicitly target the jdk25 branch in the mobile repository
+        git clone --depth 1 --branch jdk25 https://github.com/openjdk/mobile.git openjdk-25
+        cd openjdk-25
         
         # Now clone fresh from the mobile repository
         git clone --depth 1 https://github.com/openjdk/mobile.git openjdk-25
