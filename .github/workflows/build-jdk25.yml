@@ -75,10 +75,11 @@ jobs:
           --with-target-bits=64 \
           --openjdk-target=arm64-apple-ios \
           --with-jvm-variants=server \
-          --enable-static-jvm=yes \
+          --with-static-jvm=yes \
           --with-libffi=$LIBFFI_PATH \
-          --with-extra-cflags="-arch arm64 -miphoneos-version-min=14.0" \
-          --with-extra-ldflags="-arch arm64"
+          --with-extra-cflags="-arch arm64 -isysroot $(xcrun --sdk iphoneos --show-sdk-path) -miphoneos-version-min=14.0" \
+          --with-extra-ldflags="-arch arm64 -isysroot $(xcrun --sdk iphoneos --show-sdk-path)" \
+          --disable-warnings-as-errors
 
     - name: Compile OpenJDK 25 Images
       run: |
