@@ -69,7 +69,10 @@ jobs:
 
     - name: Clone OpenJDK Mobile Source
       run: |
-        # Pull from the mobile-specific openjdk repo which contains the iOS port configs
+        # Force remove the directory if it exists from a previous step or run
+        rm -rf openjdk-25
+        
+        # Now clone fresh from the mobile repository
         git clone --depth 1 https://github.com/openjdk/mobile.git openjdk-25
         cd openjdk-25
 
