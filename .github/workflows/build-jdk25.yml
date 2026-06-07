@@ -80,12 +80,11 @@ jobs:
       run: |
         cd openjdk-25
         
-        # Point directly to the location of the Xcode iOS platform SDK
+        # Explicit path to the Xcode iOS platform SDK
         IOS_PLATFORM_SDK="/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk"
         
         bash configure \
           --with-boot-jdk=$JAVA_HOME \
-          --with-target-bits=64 \
           --openjdk-target=aarch64-macos-ios \
           --with-jvm-variants=server \
           --with-libffi-include=$LIBFFI_PATH/include \
