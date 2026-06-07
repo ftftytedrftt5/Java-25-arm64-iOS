@@ -95,11 +95,19 @@ jobs:
           --enable-headless-only=yes \
           --with-cups-include=$(pwd)/mock-cups
           
-    - name: Compile OpenJDK 25 Images
+    - name: Patch OpenJDK 25 Source for iOS Compatibility
       run: |
         cd openjdk-25
-        # Do not use -j flag; use JOBS= instead to pass cores to the OpenJDK build system
-        make images JOBS=4
+        
+        # 1. Force the build system to use Apple's -install_name instead of Linux's -soname
+        sed -i '' 's/-soname=/-install_name /g' make/autoconf/flags-ldflags.m4 || true
+        
+        # 2. Patch os_bsd.cpp so it bypasses libproc.h when compiling for iPhoneOS
+        # We tell it to look for TARGET_OS_IPHONE and skip the inclusion
+        sed -i '' 's/#include <libproc.h>/#include <TargetConditionals.h>\n#if !TARGET_OS_IPHONE\n#include <libproc.h>\n#endif/' src/hotspot/os/bsd/os_bsd.cpp || true
+        
+        # 3. Stub out any calls inside os_bsd.cpp that rely on libproc if we are on iOS
+        sed -i '' 's/proc_pidinfo/#if TARGET_OS_IPHONE\n-1\n#else\nproc_pidinfo\n#endif/g' src/hotspot/os/bsd/os_bsd.cpp || true
 
     - name: Package Runtime Tarball
       run: |
