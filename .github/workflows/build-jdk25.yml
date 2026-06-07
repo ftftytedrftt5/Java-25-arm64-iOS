@@ -62,16 +62,18 @@ jobs:
 
     - name: Create Dummy CUPS Headers for iOS Cross-Compile
       run: |
-        # Add the 'include' directory to match what the OpenJDK script expects
-        mkdir -p ./fake_cups/include/cups
-        touch ./fake_cups/include/cups/cups.h
+        # Use explicit absolute pathing mapping to the runner workspace
+        mkdir -p "$GITHUB_WORKSPACE/fake_cups/include/cups"
+        touch "$GITHUB_WORKSPACE/fake_cups/include/cups/cups.h"
 
     - name: Configure OpenJDK 25 Cross-Compilation
       run: |
         cd openjdk-25
         
         IOS_PLATFORM_SDK="/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk"
-        FAKE_CUPS_DIR="$(pwd)/../fake_cups"
+        
+        # Define base directory explicitly using the runner's root environment
+        FAKE_CUPS_DIR="$GITHUB_WORKSPACE/fake_cups"
         
         bash configure \
           --with-boot-jdk=$JAVA_HOME \
