@@ -98,8 +98,8 @@ jobs:
           --disable-warnings-as-errors \
           --with-version-feature=25 \
           --with-version-string=25-internal \
-          --with-cups=no \
-          --with-cups-include=/usr/include
+          --with-cups-include=/usr/include \
+          --with-cups-lib=/usr/lib
 
     - name: Compile OpenJDK 25 Images
       run: |
