@@ -98,8 +98,8 @@ jobs:
     - name: Compile OpenJDK 25 Images
       run: |
         cd openjdk-25
-        # Build the mobile static libraries image variant
-        make static-libs-image -j$(sysctl -n hw.ncpu)
+        # Do not use -j flag; use JOBS= instead to pass cores to the OpenJDK build system
+        make images JOBS=4
 
     - name: Package Runtime Tarball
       run: |
