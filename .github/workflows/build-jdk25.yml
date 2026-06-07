@@ -70,28 +70,31 @@ jobs:
     - name: Configure OpenJDK 25 Cross-Compilation
       run: |
         cd openjdk-25
+        
+        # Explicitly pinpoint the separate headers and library output folders for LibFFI
         bash configure \
           --with-boot-jdk=$JAVA_HOME \
           --with-target-bits=64 \
-          --openjdk-target=arm64-apple-ios \
+          --openjdk-target=aarch64-macos-ios \
           --with-jvm-variants=server \
-          --with-static-jvm=yes \
-          --with-libffi=$LIBFFI_PATH \
-          --with-extra-cflags="-arch arm64 -isysroot $(xcrun --sdk iphoneos --show-sdk-path) -miphoneos-version-min=14.0" \
-          --with-extra-ldflags="-arch arm64 -isysroot $(xcrun --sdk iphoneos --show-sdk-path)" \
+          --with-libffi-include=$LIBFFI_PATH/include \
+          --with-libffi-lib=$LIBFFI_PATH/.libs \
+          --with-sysroot=$(xcrun --sdk iphoneos --show-sdk-path) \
+          --with-extra-cflags="-arch arm64 -miphoneos-version-min=14.0" \
+          --with-extra-ldflags="-arch arm64" \
           --disable-warnings-as-errors
 
     - name: Compile OpenJDK 25 Images
       run: |
         cd openjdk-25
-        # Compiles the actual binary files and structure
-        make images -j$(sysctl -n hw.ncpu)
+        # Build the mobile static libraries image variant
+        make static-libs-image -j$(sysctl -n hw.ncpu)
 
     - name: Package Runtime Tarball
       run: |
-        cd openjdk-25/build/*-release/images
-        # Package the compiled JRE image directory into a tarball
-        tar -czf ../../../../ios-arm64-jdk25.tar.gz jdk/
+        # Adjust packaging directory targeting the compiled static libs location
+        cd openjdk-25/build/*/images/static-libs
+        tar -czf ../../../../ios-arm64-jdk25.tar.gz .
         
     - name: Upload Build Artifact
       uses: actions/upload-artifact@v4
