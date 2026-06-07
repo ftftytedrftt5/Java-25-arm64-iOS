@@ -70,12 +70,7 @@ jobs:
     - name: Clone OpenJDK Mobile Source
       run: |
         rm -rf openjdk-25
-        
-        # Explicitly target the jdk25 branch in the mobile repository
-        git clone --depth 1 --branch jdk25 https://github.com/openjdk/mobile.git openjdk-25
-        cd openjdk-25
-        
-        # Now clone fresh from the mobile repository
+        # Clone the main master branch which handles all versions
         git clone --depth 1 https://github.com/openjdk/mobile.git openjdk-25
         cd openjdk-25
 
@@ -83,7 +78,6 @@ jobs:
       run: |
         cd openjdk-25
         
-        # Explicit path to the Xcode iOS platform SDK
         IOS_PLATFORM_SDK="/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk"
         
         bash configure \
@@ -95,7 +89,10 @@ jobs:
           --with-sysroot=$IOS_PLATFORM_SDK \
           --with-extra-cflags="-arch arm64 -miphoneos-version-min=14.0" \
           --with-extra-ldflags="-arch arm64" \
-          --disable-warnings-as-errors
+          --disable-warnings-as-errors \
+          --with-version-feature=25 \
+          --with-version-string=25-internal
+
 
     - name: Compile OpenJDK 25 Images
       run: |
