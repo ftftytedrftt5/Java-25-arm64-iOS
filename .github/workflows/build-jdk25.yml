@@ -71,15 +71,15 @@ jobs:
         # 1. Enter the source directory
         cd openjdk-25
         
-        # 2. Create a mock CUPS directory layout
+        # 2. Create a syntactically valid mock CUPS environment
         mkdir -p mock-cups/cups
-        touch mock-cups/cups/cups.h
-        touch mock-cups/cups/ppd.h
+        echo "/* Mock CUPS header */" > mock-cups/cups/cups.h
+        echo "/* Mock PPD header */" > mock-cups/cups/ppd.h
         
         # 3. Setup paths
         IOS_PLATFORM_SDK="/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk"
         
-        # 4. Run configure pointing to the fake CUPS headers
+        # 4. Run configure pointing to the valid dummy paths
         bash configure \
           --with-boot-jdk=$JAVA_HOME \
           --openjdk-target=aarch64-macos-ios \
