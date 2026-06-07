@@ -97,7 +97,9 @@ jobs:
           --with-extra-ldflags="-arch arm64" \
           --disable-warnings-as-errors \
           --with-version-feature=25 \
-          --with-version-string=25-internal
+          --with-version-string=25-internal \
+          --with-cups-include=no
+
 
 
     - name: Compile OpenJDK 25 Images
