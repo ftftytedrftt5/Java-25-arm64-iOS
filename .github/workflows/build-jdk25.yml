@@ -62,37 +62,12 @@ jobs:
         # 2. Prevent libproc.h inclusion entirely on iOS
         sed -i '' 's/#include <libproc.h>/#include <TargetConditionals.h>\n#if !TARGET_OS_IPHONE\n#include <libproc.h>\n#endif/' src/hotspot/os/bsd/os_bsd.cpp || true
         
-        # 3. Explicitly overwrite print_open_files using exact token boundaries
-        python3 -c '
-        with open("src/hotspot/os/bsd/os_bsd.cpp", "r") as f:
-            lines = f.readlines()
-
-        start_idx = None
-        end_idx = None
-
-        # Trace the function declaration signature manually
-        for idx, line in enumerate(lines):
-            if "void os::print_open_files" in line:
-                start_idx = idx
-            if start_idx is not None and line.strip() == "}" and end_idx is None:
-                # Capture the closing block after the declaration
-                if idx > start_idx:
-                    end_idx = idx
-                    break
-
-        if start_idx is not None and end_idx is not None:
-            # Drop an explicit conditional block around the target range
-            lines.insert(end_idx + 1, "#endif\n")
-            lines.insert(start_idx + 1, "\n#if TARGET_OS_IPHONE\n  st->print_cr(\"Open files diagnostic disabled on iOS\");\n#else\n")
-            
-            with open("src/hotspot/os/bsd/os_bsd.cpp", "w") as f:
-                f.writelines(lines)
-            print("Successfully isolated print_open_files for iOS.")
-        else:
-            print("Error: Could not target print_open_files block markers.")
-        '
-
-        # 4. Clean up other potential stubs that make macOS desktop calls
+        # 3. Direct literal replacement for the structures causing build failure on the iOS SDK
+        # We rewrite the internals of the file descriptor logging mechanism to bypass the structure requirements
+        sed -i '' 's/struct proc_fdinfo/char/g' src/hotspot/os/bsd/os_bsd.cpp || true
+        sed -i '' 's/proc_pidinfo(my_pid, PROC_PIDLISTFDS, 0, fds, max_fds \* sizeof(char))/-1 \/\/ Bypassed on iOS/g' src/hotspot/os/bsd/os_bsd.cpp || true
+        
+        # 4. Clean up remaining stubs that make macOS desktop calls
         sed -i '' 's/^int os::get_open_file_descriptor_count.*/int os::get_open_file_descriptor_count() { return -1; }/g' src/hotspot/os/bsd/os_bsd.cpp || true
         sed -i '' 's/^void os::print_font_info.*/void os::print_font_info(outputStream* st) { st->print_cr("Fonts: Disabled on iOS headless"); }/g' src/hotspot/os/bsd/os_bsd.cpp || true
         
