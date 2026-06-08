@@ -80,9 +80,10 @@ jobs:
 
     - name: Package OpenJDK as an Importable Runtime
       run: |
-        cd openjdk-25
+        # 1. FIX: Explicitly start from the repository workspace root
+        cd $GITHUB_WORKSPACE/openjdk-25
         
-        # 1. Dynamically locate where the static libraries are sitting
+        # 2. Dynamically locate where the static libraries are sitting
         STATIC_LIBS_DIR=$(find build -type d -name "static-libs" -o -name "static-libs-image" | head -n 1)
         if [ -z "$STATIC_LIBS_DIR" ]; then
           LIBJVM_PATH=$(find build -name "libjvm.a" | head -n 1)
@@ -96,18 +97,18 @@ jobs:
           exit 1
         fi
         
-        # 2. Setup structural paths safely
+        # 3. Setup structural paths safely
         mkdir -p $GITHUB_WORKSPACE/OpenJDKRuntime.xcframework/ios-arm64/Headers
         
-        # 3. Dynamic library copy strategy
+        # 4. Dynamic library copy strategy
         find "$STATIC_LIBS_DIR" -name "libjava.a" -exec cp {} $GITHUB_WORKSPACE/OpenJDKRuntime.xcframework/ios-arm64/ \;
         find "$STATIC_LIBS_DIR" -name "libjvm.a" -exec cp {} $GITHUB_WORKSPACE/OpenJDKRuntime.xcframework/ios-arm64/ \;
         
-        # 4. FIX: Dynamic header copy strategy (finds jni.h and jni_md.h anywhere under src/)
+        # 5. Dynamic header copy strategy
         find src/java.base -name "jni.h" -exec cp {} $GITHUB_WORKSPACE/OpenJDKRuntime.xcframework/ios-arm64/Headers/ \;
         find src/java.base -name "jni_md.h" -exec cp {} $GITHUB_WORKSPACE/OpenJDKRuntime.xcframework/ios-arm64/Headers/ \;
         
-        # 5. Build framework configuration profile
+        # 6. Build framework configuration profile
         cat << 'EOF' > $GITHUB_WORKSPACE/OpenJDKRuntime.xcframework/Info.plist
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -136,6 +137,6 @@ jobs:
         </plist>
         EOF
 
-        # 6. Compress runtime framework
+        # 7. Compress runtime framework
         cd $GITHUB_WORKSPACE
         tar -czf OpenJDKRuntime.xcframework.tar.gz OpenJDKRuntime.xcframework
