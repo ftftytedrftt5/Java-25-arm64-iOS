@@ -148,6 +148,7 @@ jobs:
         # 2. Copy the static libraries into the runtime directory
         cp build/ios-aarch64-server-release/images/static-libs-image/lib/libjava.a $GITHUB_WORKSPACE/OpenJDKRuntime.xcframework/ios-arm64/
         cp build/ios-aarch64-server-release/images/static-libs-image/lib/server/libjvm.a $GITHUB_WORKSPACE/OpenJDKRuntime.xcframework/ios-arm64/
+        # Include any other required .a files here (e.g., libzip.a, libnio.a)
         
         # 3. Copy the standard JNI header files needed for importing the runtime
         cp src/java.base/share/native/include/jni.h $GITHUB_WORKSPACE/OpenJDKRuntime.xcframework/ios-arm64/Headers/
@@ -191,4 +192,3 @@ jobs:
       with:
         name: OpenJDKRuntime-iOS
         path: OpenJDKRuntime.xcframework.tar.gz
-
