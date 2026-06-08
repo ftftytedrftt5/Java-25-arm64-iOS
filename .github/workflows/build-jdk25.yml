@@ -62,25 +62,37 @@ jobs:
         # 2. Prevent libproc.h inclusion entirely on iOS
         sed -i '' 's/#include <libproc.h>/#include <TargetConditionals.h>\n#if !TARGET_OS_IPHONE\n#include <libproc.h>\n#endif/' src/hotspot/os/bsd/os_bsd.cpp || true
         
-        # 3. Use Python to entirely replace the body of print_open_files with an iOS-safe stub
+        # 3. Explicitly overwrite print_open_files using exact token boundaries
         python3 -c '
-        import re
-
         with open("src/hotspot/os/bsd/os_bsd.cpp", "r") as f:
-            content = f.read()
+            lines = f.readlines()
 
-        # Regular expression matching the function declaration and its body up to the closing brace
-        # This isolates the entire function logic safely without tripping on missing structs
-        pattern = r"(void\s+os::print_open_files\s*\([^)]*\)\s*\{)(.*?)(\n\})"
-        replacement = r"\1\n#if TARGET_OS_IPHONE\n  st->print_cr(\"Open files diagnostic disabled on iOS\");\n#else\2\n#endif\3"
+        start_idx = None
+        end_idx = None
 
-        patched_content = re.sub(pattern, replacement, content, flags=re.DOTALL)
+        # Trace the function declaration signature manually
+        for idx, line in enumerate(lines):
+            if "void os::print_open_files" in line:
+                start_idx = idx
+            if start_idx is not None and line.strip() == "}" and end_idx is None:
+                # Capture the closing block after the declaration
+                if idx > start_idx:
+                    end_idx = idx
+                    break
 
-        with open("src/hotspot/os/bsd/os_bsd.cpp", "w") as f:
-            f.write(patched_content)
+        if start_idx is not None and end_idx is not None:
+            # Drop an explicit conditional block around the target range
+            lines.insert(end_idx + 1, "#endif\n")
+            lines.insert(start_idx + 1, "\n#if TARGET_OS_IPHONE\n  st->print_cr(\"Open files diagnostic disabled on iOS\");\n#else\n")
+            
+            with open("src/hotspot/os/bsd/os_bsd.cpp", "w") as f:
+                f.writelines(lines)
+            print("Successfully isolated print_open_files for iOS.")
+        else:
+            print("Error: Could not target print_open_files block markers.")
         '
 
-        # 4. Clean up other potential stubs that make macOS-specific desktop calls
+        # 4. Clean up other potential stubs that make macOS desktop calls
         sed -i '' 's/^int os::get_open_file_descriptor_count.*/int os::get_open_file_descriptor_count() { return -1; }/g' src/hotspot/os/bsd/os_bsd.cpp || true
         sed -i '' 's/^void os::print_font_info.*/void os::print_font_info(outputStream* st) { st->print_cr("Fonts: Disabled on iOS headless"); }/g' src/hotspot/os/bsd/os_bsd.cpp || true
         
