@@ -3,7 +3,7 @@ name: Build OpenJDK 25 for iOS ARM64
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: 
+  workflow_dispatch: # Allows manual trigger from the GitHub UI
 
 jobs:
   build-ios-jdk:
@@ -15,7 +15,9 @@ jobs:
 
     - name: Set up Autoconf & Build Dependencies
       run: |
+        # Added texinfo to provide 'makeinfo'
         brew install autoconf automake libtool texinfo
+        # Force the system to see the newly installed texinfo binaries
         echo "/opt/homebrew/opt/texinfo/bin" >> $GITHUB_PATH
         sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
@@ -31,8 +33,10 @@ jobs:
         cd libffi
         ./autogen.sh
         
+        # Explicitly extract the path to Apple's iOS SDK
         IOS_SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
         
+        # Configure libffi using the correct iOS architecture and SDK path flags
         ./configure \
           --host=arm64-apple-darwin \
           --enable-static \
@@ -45,11 +49,13 @@ jobs:
 
     - name: Clone OpenJDK Mobile Source
       run: |
+        # Clone the main master branch which handles all versions
         git clone --depth 1 https://github.com/openjdk/mobile.git openjdk-25
 
     - name: Apply Pojav/Amethyst Memory Patches
       run: |
         cd openjdk-25
+        # NOTE: This is where you apply the custom W^X memory patches.
         echo "Applying custom iOS JIT patches to HotSpot code..."
 
     - name: Patch OpenJDK 25 Source for iOS Compatibility
@@ -65,13 +71,13 @@ jobs:
         # 3. Direct literal replacement for structures causing failure on iOS
         sed -i '' 's/struct proc_fdinfo/char/g' src/hotspot/os/bsd/os_bsd.cpp || true
         
-        # 4. FIX: Place the semicolon BEFORE the comment so the compiler registers the end of the assignment statement
+        # 4. Place the semicolon BEFORE the comment so the statement closes out properly
         sed -i '' 's/proc_pidinfo(my_pid, PROC_PIDLISTFDS, 0, fds, max_fds \* sizeof(char))/-1; \/\/ Bypassed on iOS/g' src/hotspot/os/bsd/os_bsd.cpp || true
         
         # 5. Clean up remaining stubs that make macOS desktop calls
         sed -i '' 's/^int os::get_open_file_descriptor_count.*/int os::get_open_file_descriptor_count() { return -1; }/g' src/hotspot/os/bsd/os_bsd.cpp || true
         sed -i '' 's/^void os::print_font_info.*/void os::print_font_info(outputStream* st) { st->print_cr("Fonts: Disabled on iOS headless"); }/g' src/hotspot/os/bsd/os_bsd.cpp || true
-        
+
     - name: Configure OpenJDK 25 Cross-Compilation
       run: |
         cd openjdk-25
@@ -97,7 +103,7 @@ jobs:
           --with-version-string=25-internal \
           --enable-headless-only=yes \
           --with-cups-include=$(pwd)/mock-cups
-
+          
     - name: Compile OpenJDK 25 Static Images
       run: |
         cd openjdk-25
@@ -110,7 +116,7 @@ jobs:
         # 1. Look for the directory containing the compiled static libraries
         STATIC_LIBS_DIR=$(find build -type d -name "static-libs" -o -name "static-libs-image" | head -n 1)
         
-        # 2. Fallback: If the named directories aren't found, find where libjvm.a is sitting
+        # 2. Fallback: If named directories aren't found, track down libjvm.a directly
         if [ -z "$STATIC_LIBS_DIR" ]; then
           LIBJVM_PATH=$(find build -name "libjvm.a" | head -n 1)
           if [ -n "$LIBJVM_PATH" ]; then
@@ -118,7 +124,7 @@ jobs:
           fi
         fi
         
-        # 3. Safety check
+        # 3. Safety Check
         if [ -z "$STATIC_LIBS_DIR" ]; then
           echo "Error: Could not locate compiled static libraries or libjvm.a!"
           exit 1
@@ -126,10 +132,9 @@ jobs:
         
         echo "Found static libraries in: $STATIC_LIBS_DIR"
         
-        # 4. Package everything up relative to the runner workspace root
+        # 4. Target package destination cleanly relative to workspace root
         cd "$STATIC_LIBS_DIR"
         tar -czf "$GITHUB_WORKSPACE/ios-arm64-jdk25.tar.gz" .
-        
         echo "Packaging complete!"
         
     - name: Upload Build Artifact
@@ -137,58 +142,3 @@ jobs:
       with:
         name: ios-arm64-jdk25
         path: ios-arm64-jdk25.tar.gz
-
-    - name: Package OpenJDK as an Importable Runtime
-      run: |
-        cd openjdk-25
-        
-        # 1. Create a structured directory for the runtime framework
-        mkdir -p $GITHUB_WORKSPACE/OpenJDKRuntime.xcframework/ios-arm64/Headers
-        
-        # 2. Copy the static libraries into the runtime directory
-        cp build/ios-aarch64-server-release/images/static-libs-image/lib/libjava.a $GITHUB_WORKSPACE/OpenJDKRuntime.xcframework/ios-arm64/
-        cp build/ios-aarch64-server-release/images/static-libs-image/lib/server/libjvm.a $GITHUB_WORKSPACE/OpenJDKRuntime.xcframework/ios-arm64/
-        # Include any other required .a files here (e.g., libzip.a, libnio.a)
-        
-        # 3. Copy the standard JNI header files needed for importing the runtime
-        cp src/java.base/share/native/include/jni.h $GITHUB_WORKSPACE/OpenJDKRuntime.xcframework/ios-arm64/Headers/
-        cp src/java.base/macosx/native/include/jni_md.h $GITHUB_WORKSPACE/OpenJDKRuntime.xcframework/ios-arm64/Headers/
-        
-        # 4. Create a basic Info.plist so Xcode recognizes it as a valid static framework
-        cat << 'EOF' > $GITHUB_WORKSPACE/OpenJDKRuntime.xcframework/Info.plist
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>AvailableLibraries</key>
-            <array>
-                <dict>
-                    <key>BinaryPath</key>
-                    <string>libjvm.a</string>
-                    <key>LibraryIdentifier</key>
-                    <string>ios-arm64</string>
-                    <key>SupportedArchitectures</key>
-                    <array>
-                        <string>arm64</string>
-                    </array>
-                    <key>SupportedPlatform</key>
-                    <string>ios</string>
-                </dict>
-            </array>
-            <key>CFBundlePackageType</key>
-            <string>XFWK</string>
-            <key>XCFrameworkFormatVersion</key>
-            <string>1.0</string>
-        </dict>
-        </plist>
-        EOF
-
-        # 5. Compress the runtime bundle for easy downloading
-        cd $GITHUB_WORKSPACE
-        tar -czf OpenJDKRuntime.xcframework.tar.gz OpenJDKRuntime.xcframework
-
-    - name: Upload Importable Runtime Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: OpenJDKRuntime-iOS
-        path: OpenJDKRuntime.xcframework.tar.gz
