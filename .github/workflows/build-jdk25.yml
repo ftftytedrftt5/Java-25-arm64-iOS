@@ -78,38 +78,33 @@ jobs:
         sed -i '' 's/^int os::get_open_file_descriptor_count.*/int os::get_open_file_descriptor_count() { return -1; }/g' src/hotspot/os/bsd/os_bsd.cpp || true
         sed -i '' 's/^void os::print_font_info.*/void os::print_font_info(outputStream* st) { st->print_cr("Fonts: Disabled on iOS headless"); }/g' src/hotspot/os/bsd/os_bsd.cpp || true
 
+    - name: Download precompiled binaries from Release
+      run: |
+        cd $GITHUB_WORKSPACE
+        curl -L -O https://github.com/ftftytedrftt5/Java-25-arm64-iOS/releases/download/pre-0.0.0/ios-arm64-jdk25.tar.gz
+
     - name: Package OpenJDK as an Importable Runtime
       run: |
-        # 1. Start from the absolute workspace root
+        # 1. Start clean at the workspace root
         cd $GITHUB_WORKSPACE
         
-        # 2. Dynamically locate the backup tarball anywhere in the build workspace
-        TARBALL_PATH=$(find . -name "ios-arm64-jdk25.tar.gz" | head -n 1)
-        
-        if [ -z "$TARBALL_PATH" ]; then
-          echo "Error: Could not find 'ios-arm64-jdk25.tar.gz' anywhere in the workspace!"
-          exit 1
-        fi
-        
-        echo "Found source archive at: $TARBALL_PATH"
-        
-        # 3. Setup the target structure for the framework safely
+        # 2. Setup the target structure for the framework safely
         mkdir -p OpenJDKRuntime.xcframework/ios-arm64/Headers
         
-        # 4. Extract directly from the dynamically located path
-        echo "Extracting compiled static libraries from archive..."
-        tar -xzf "$TARBALL_PATH" -C OpenJDKRuntime.xcframework/ios-arm64/
+        # 3. Extract your compiled binaries directly from the downloaded tarball
+        echo "Extracting compiled static libraries from downloaded archive..."
+        tar -xzf ios-arm64-jdk25.tar.gz -C OpenJDKRuntime.xcframework/ios-arm64/
         
-        # 5. Clean up unnecessary files from the framework folder, leaving only the libraries
+        # 4. Clean up unnecessary files from the framework folder, leaving only the libraries
         find OpenJDKRuntime.xcframework/ios-arm64/ -type f ! -name "*.a" -delete
         find OpenJDKRuntime.xcframework/ios-arm64/ -type d -empty -delete
         
-        # 6. Extract the required header files from the source repository clone
+        # 5. Extract the required header files from the source repository clone
         echo "Locating and copying standard JNI header files..."
         find . -name "jni.h" -exec cp {} OpenJDKRuntime.xcframework/ios-arm64/Headers/ \;
         find . -name "jni_md.h" -exec cp {} OpenJDKRuntime.xcframework/ios-arm64/Headers/ \;
         
-        # 7. Build the static framework profile configuration
+        # 6. Build the static framework profile configuration
         cat << 'EOF' > OpenJDKRuntime.xcframework/Info.plist
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -138,5 +133,5 @@ jobs:
         </plist>
         EOF
 
-        # 8. Compress the importable runtime framework
+        # 7. Compress the importable runtime framework
         tar -czf OpenJDKRuntime.xcframework.tar.gz OpenJDKRuntime.xcframework
