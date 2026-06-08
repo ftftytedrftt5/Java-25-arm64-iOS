@@ -3,7 +3,7 @@ name: Build OpenJDK 25 for iOS ARM64
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: # Allows manual trigger from the GitHub UI
+  workflow_dispatch: 
 
 jobs:
   build-ios-jdk:
@@ -15,9 +15,7 @@ jobs:
 
     - name: Set up Autoconf & Build Dependencies
       run: |
-        # Added texinfo to provide 'makeinfo'
         brew install autoconf automake libtool texinfo
-        # Force the system to see the newly installed texinfo binaries
         echo "/opt/homebrew/opt/texinfo/bin" >> $GITHUB_PATH
         sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
@@ -33,10 +31,8 @@ jobs:
         cd libffi
         ./autogen.sh
         
-        # Explicitly extract the path to Apple's iOS SDK
         IOS_SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
         
-        # Configure libffi using the correct iOS architecture and SDK path flags
         ./configure \
           --host=arm64-apple-darwin \
           --enable-static \
@@ -49,37 +45,37 @@ jobs:
 
     - name: Clone OpenJDK Mobile Source
       run: |
-        # Clone the main master branch which handles all versions
         git clone --depth 1 https://github.com/openjdk/mobile.git openjdk-25
 
     - name: Apply Pojav/Amethyst Memory Patches
       run: |
         cd openjdk-25
-        # NOTE: This is where you apply the custom W^X memory patches.
-        # For demonstration, we simulate applying a patch file:
-        # git apply ../patches/ios_jit_memory_swaps.patch
         echo "Applying custom iOS JIT patches to HotSpot code..."
 
-    - name: Create Dummy CUPS Headers for iOS Cross-Compile
+    - name: Patch OpenJDK 25 Source for iOS Compatibility
       run: |
-        # Use explicit absolute pathing mapping to the runner workspace
-        mkdir -p "$GITHUB_WORKSPACE/fake_cups/include/cups"
-        touch "$GITHUB_WORKSPACE/fake_cups/include/cups/cups.h"
+        cd openjdk-25
+        
+        # 1. Force the build system to use Apple's -install_name instead of Linux's -soname
+        sed -i '' 's/-soname=/-install_name /g' make/autoconf/flags-ldflags.m4 || true
+        
+        # 2. Patch os_bsd.cpp so it bypasses libproc.h when compiling for iPhoneOS
+        sed -i '' 's/#include <libproc.h>/#include <TargetConditionals.h>\n#if !TARGET_OS_IPHONE\n#include <libproc.h>\n#endif/' src/hotspot/os/bsd/os_bsd.cpp || true
+        
+        # 3. Stub out any calls inside os_bsd.cpp that rely on libproc if we are on iOS
+        sed -i '' 's/proc_pidinfo/#if TARGET_OS_IPHONE\n-1\n#else\nproc_pidinfo\n#endif/g' src/hotspot/os/bsd/os_bsd.cpp || true
 
     - name: Configure OpenJDK 25 Cross-Compilation
       run: |
-        # 1. Enter the source directory
         cd openjdk-25
         
-        # 2. Create a syntactically valid mock CUPS environment
+        # Create a syntactically valid mock CUPS environment
         mkdir -p mock-cups/cups
         echo "/* Mock CUPS header */" > mock-cups/cups/cups.h
         echo "/* Mock PPD header */" > mock-cups/cups/ppd.h
         
-        # 3. Setup paths
         IOS_PLATFORM_SDK="/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk"
         
-        # 4. Run configure pointing to the valid dummy paths
         bash configure \
           --with-boot-jdk=$JAVA_HOME \
           --openjdk-target=aarch64-macos-ios \
@@ -94,35 +90,27 @@ jobs:
           --with-version-string=25-internal \
           --enable-headless-only=yes \
           --with-cups-include=$(pwd)/mock-cups
-          
-    - name: Patch OpenJDK 25 Source for iOS Compatibility
+
+    - name: Compile OpenJDK 25 Static Images
       run: |
         cd openjdk-25
-        
-        # 1. Force the build system to use Apple's -install_name instead of Linux's -soname
-        sed -i '' 's/-soname=/-install_name /g' make/autoconf/flags-ldflags.m4 || true
-        
-        # 2. Patch os_bsd.cpp so it bypasses libproc.h when compiling for iPhoneOS
-        # We tell it to look for TARGET_OS_IPHONE and skip the inclusion
-        sed -i '' 's/#include <libproc.h>/#include <TargetConditionals.h>\n#if !TARGET_OS_IPHONE\n#include <libproc.h>\n#endif/' src/hotspot/os/bsd/os_bsd.cpp || true
-        
-        # 3. Stub out any calls inside os_bsd.cpp that rely on libproc if we are on iOS
-        sed -i '' 's/proc_pidinfo/#if TARGET_OS_IPHONE\n-1\n#else\nproc_pidinfo\n#endif/g' src/hotspot/os/bsd/os_bsd.cpp || true
+        make static-libs-image JOBS=4
 
     - name: Adjust packaging directory
       run: |
         cd openjdk-25
-        # Dynamically locate the static-libs path
-        STATIC_LIBS_PATH=$(find build -type d -name "static-libs" | head -n 1)
         
-        if [ -z "$STATIC_LIBS_PATH" ]; then
-          echo "Error: static-libs directory not found!"
+        # Dynamically locate the static-libs-image folder
+        STATIC_IMAGE_PATH=$(find build -type d -name "static-libs-image" | head -n 1)
+        
+        if [ -z "$STATIC_IMAGE_PATH" ]; then
+          echo "Error: static-libs-image folder not found!"
           exit 1
         fi
         
-        cd "$STATIC_LIBS_PATH"
-        pwd
-        # Continue with your packaging steps here...
+        # Compress the static libraries image into the archive artifact
+        cd "$STATIC_IMAGE_PATH"
+        tar -czf ../../../../ios-arm64-jdk25.tar.gz .
         
     - name: Upload Build Artifact
       uses: actions/upload-artifact@v4
