@@ -135,3 +135,9 @@ jobs:
 
         # 7. Compress the importable runtime framework
         tar -czf OpenJDKRuntime.xcframework.tar.gz OpenJDKRuntime.xcframework
+
+    - name: Upload Framework Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: OpenJDKRuntime-Framework
+        path: OpenJDKRuntime.xcframework.tar.gz
