@@ -1,4 +1,4 @@
-Name: Build OpenJDK 25 for iOS ARM64
+name: Build OpenJDK 25 for iOS ARM64
 
 on:
   push:
