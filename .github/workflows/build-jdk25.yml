@@ -107,17 +107,30 @@ jobs:
       run: |
         cd openjdk-25
         
-        # Dynamically locate the static-libs-image folder
-        STATIC_IMAGE_PATH=$(find build -type d -name "static-libs-image" | head -n 1)
+        # 1. Look for the directory containing the compiled static libraries
+        STATIC_LIBS_DIR=$(find build -type d -name "static-libs" -o -name "static-libs-image" | head -n 1)
         
-        if [ -z "$STATIC_IMAGE_PATH" ]; then
-          echo "Error: static-libs-image folder not found!"
+        # 2. Fallback: If the named directories aren't found, find where libjvm.a is sitting
+        if [ -z "$STATIC_LIBS_DIR" ]; then
+          LIBJVM_PATH=$(find build -name "libjvm.a" | head -n 1)
+          if [ -n "$LIBJVM_PATH" ]; then
+            STATIC_LIBS_DIR=$(dirname "$LIBJVM_PATH")
+          fi
+        fi
+        
+        # 3. Safety check
+        if [ -z "$STATIC_LIBS_DIR" ]; then
+          echo "Error: Could not locate compiled static libraries or libjvm.a!"
           exit 1
         fi
         
-        # Compress the static libraries image into the archive artifact
-        cd "$STATIC_IMAGE_PATH"
-        tar -czf ../../../../ios-arm64-jdk25.tar.gz .
+        echo "Found static libraries in: $STATIC_LIBS_DIR"
+        
+        # 4. Package everything up relative to the runner workspace root
+        cd "$STATIC_LIBS_DIR"
+        tar -czf "$GITHUB_WORKSPACE/ios-arm64-jdk25.tar.gz" .
+        
+        echo "Packaging complete!"
         
     - name: Upload Build Artifact
       uses: actions/upload-artifact@v4
